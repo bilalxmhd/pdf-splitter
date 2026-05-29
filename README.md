@@ -2,6 +2,8 @@
 
 A simple yet powerful web-based tool to split PDF files into smaller chunks. Built with Flask and PyPDF, it provides a user-friendly interface for breaking down large PDFs into manageable pieces.
 
+Live : https://bilalxmhd.github.io/pdf-splitter/
+
 ## ✨ Features
 
 - 🎯 **Drag & Drop Upload** - Easily upload PDFs with intuitive drag-and-drop interface
