@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Splitter</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap");
+
+      :root {
+        --bg: #0d0d0f;
+        --surface: #141418;
+        --border: #2a2a32;
+        --accent: #e8ff47;
+        --accent2: #47ffe0;
+        --text: #f0f0f4;
+        --muted: #6b6b7a;
+        --danger: #ff5e5e;
+        --success: #47ff8e;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "DM Mono", monospace;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        top: -40%;
+        left: -20%;
+        width: 70vw;
+        height: 70vw;
+        background: radial-gradient(
+          circle,
+          rgba(232, 255, 71, 0.06) 0%,
+          transparent 65%
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        bottom: -40%;
+        right: -20%;
+        width: 60vw;
+        height: 60vw;
+        background: radial-gradient(
+          circle,
+          rgba(71, 255, 224, 0.05) 0%,
+          transparent 65%
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 520px;
+      }
+
+      .header {
+        margin-bottom: 2.5rem;
+      }
+      .eyebrow {
+        font-size: 0.65rem;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 500;
+        margin-bottom: 0.6rem;
+      }
+      .title {
+        font-family: "Syne", sans-serif;
+        font-size: clamp(2rem, 6vw, 2.8rem);
+        font-weight: 800;
+        line-height: 1.05;
+        color: var(--text);
+      }
+      .title span {
+        color: var(--accent);
+      }
+      .subtitle {
+        margin-top: 0.75rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 2rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--accent),
+          transparent
+        );
+        opacity: 0.4;
+      }
+
+      .field {
+        margin-bottom: 1.5rem;
+      }
+
+      label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.6rem;
+        font-weight: 500;
+      }
+      label .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--accent);
+        display: inline-block;
+        flex-shrink: 0;
+      }
+
+      .drop-zone {
+        border: 1.5px dashed var(--border);
+        border-radius: 10px;
+        padding: 1.8rem 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+        position: relative;
+        background: rgba(255, 255, 255, 0.015);
+      }
+      .drop-zone:hover,
+      .drop-zone.dragover {
+        border-color: var(--accent);
+        background: rgba(232, 255, 71, 0.04);
+      }
+      .drop-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+      .drop-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        display: block;
+        filter: grayscale(1);
+        transition: filter 0.2s;
+      }
+      .drop-zone:hover .drop-icon {
+        filter: none;
+      }
+      .drop-text {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .drop-text strong {
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .file-name {
+        margin-top: 0.5rem;
+        font-size: 0.72rem;
+        color: var(--accent2);
+        word-break: break-all;
+        display: none;
+      }
+      .file-name.visible {
+        display: block;
+      }
+
+      .num-row {
+        display: flex;
+        align-items: center;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.02);
+        transition: border-color 0.2s;
+      }
+      .num-row:focus-within {
+        border-color: var(--accent);
+      }
+      .num-btn {
+        width: 44px;
+        height: 44px;
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition:
+          color 0.2s,
+          background 0.2s;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Syne", sans-serif;
+      }
+      .num-btn:hover {
+        color: var(--accent);
+        background: rgba(232, 255, 71, 0.06);
+      }
+      .num-input {
+        flex: 1;
+        background: none;
+        border: none;
+        color: var(--text);
+        font-family: "Syne", sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        text-align: center;
+        outline: none;
+        padding: 0.5rem 0;
+        -moz-appearance: textfield;
+      }
+      .num-input::-webkit-inner-spin-button,
+      .num-input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+      }
+
+      .hint {
+        margin-top: 0.45rem;
+        font-size: 0.67rem;
+        color: var(--muted);
+      }
+
+      .text-input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        font-family: "DM Mono", monospace;
+        font-size: 0.85rem;
+        padding: 0.65rem 0.9rem;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .text-input:focus {
+        border-color: var(--accent);
+      }
+      .text-input::placeholder {
+        color: var(--muted);
+      }
+
+      .preview-row {
+        margin-top: 0.55rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .preview-label {
+        font-size: 0.63rem;
+        color: var(--muted);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+      .preview-badge {
+        font-size: 0.7rem;
+        color: var(--accent2);
+        background: rgba(71, 255, 224, 0.08);
+        border: 1px solid rgba(71, 255, 224, 0.2);
+        border-radius: 5px;
+        padding: 0.15rem 0.5rem;
+        font-family: "DM Mono", monospace;
+        word-break: break-all;
+      }
+
+      .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 1.75rem 0;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 0.9rem 1.5rem;
+        background: var(--accent);
+        color: #0d0d0f;
+        border: none;
+        border-radius: 10px;
+        font-family: "Syne", sans-serif;
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition:
+          transform 0.15s,
+          box-shadow 0.15s,
+          opacity 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(232, 255, 71, 0.25);
+      }
+      .btn:active:not(:disabled) {
+        transform: translateY(0);
+      }
+      .btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+
+      .progress-wrap {
+        display: none;
+        margin-top: 1.25rem;
+      }
+      .progress-wrap.visible {
+        display: block;
+      }
+      .progress-bar-bg {
+        height: 3px;
+        background: var(--border);
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        border-radius: 99px;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+      .progress-label {
+        font-size: 0.68rem;
+        color: var(--muted);
+        margin-top: 0.5rem;
+      }
+
+      .log {
+        display: none;
+        margin-top: 1.5rem;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        max-height: 220px;
+        overflow-y: auto;
+        font-size: 0.7rem;
+        line-height: 1.8;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      .log.visible {
+        display: block;
+      }
+      .log-entry {
+        color: var(--muted);
+      }
+      .log-entry.ok {
+        color: var(--success);
+      }
+      .log-entry.err {
+        color: var(--danger);
+      }
+      .log-entry.info {
+        color: var(--accent2);
+      }
+
+      .downloads {
+        display: none;
+        margin-top: 1.25rem;
+      }
+      .downloads.visible {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .dl-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: rgba(71, 255, 142, 0.07);
+        border: 1px solid rgba(71, 255, 142, 0.25);
+        border-radius: 8px;
+        padding: 0.55rem 0.9rem;
+        color: var(--success);
+        font-family: "DM Mono", monospace;
+        font-size: 0.72rem;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.2s;
+        word-break: break-all;
+      }
+      .dl-btn:hover {
+        background: rgba(71, 255, 142, 0.13);
+      }
+
+      .reset-row {
+        margin-top: 1.25rem;
+        text-align: center;
+      }
+      .reset-link {
+        font-size: 0.68rem;
+        color: var(--muted);
+        cursor: pointer;
+        background: none;
+        border: none;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        transition: color 0.2s;
+      }
+      .reset-link:hover {
+        color: var(--text);
+      }
+
+      .footer {
+        margin-top: 2rem;
+        font-size: 0.65rem;
+        color: var(--muted);
+        text-align: center;
+        letter-spacing: 0.05em;
+      }
+      .footer a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="eyebrow">● Utility Tool v1.0</div>
+        <h1 class="title">PDF<br /><span>Splitter</span></h1>
+        <p class="subtitle">
+          Split any PDF into chunks of N pages. Name the output files with a
+          custom prefix — files are numbered automatically.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label><span class="dot"></span> PDF File</label>
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="fileInput" accept=".pdf" />
+            <span class="drop-icon">📄</span>
+            <div class="drop-text">
+              <strong>Click to choose</strong> or drag &amp; drop
+            </div>
+            <div class="drop-text" style="margin-top: 0.2rem">
+              PDF files only
+            </div>
+            <div class="file-name" id="fileName"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label><span class="dot"></span> Pages per chunk</label>
+          <div class="num-row">
+            <button class="num-btn" id="decBtn" type="button">−</button>
+            <input
+              class="num-input"
+              type="number"
+              id="chunkSize"
+              value="1"
+              min="1"
+              max="9999"
+            />
+            <button class="num-btn" id="incBtn" type="button">+</button>
+          </div>
+          <div class="hint">
+            Each output file will contain this many consecutive pages.
+          </div>
+        </div>
+
+        <div class="field">
+          <label><span class="dot"></span> Output File Prefix</label>
+          <input
+            class="text-input"
+            type="text"
+            id="prefixInput"
+            placeholder="e.g.  Invoice  or  LoanDoc"
+            maxlength="80"
+          />
+          <div class="preview-row">
+            <span class="preview-label">Preview:</span>
+            <span class="preview-badge" id="previewBadge">output_001.pdf</span>
+            <span class="preview-badge" id="previewBadge2">output_002.pdf</span>
+            <span class="preview-badge" id="previewBadge3"
+              >output_003.pdf …</span
+            >
+          </div>
+          <div class="hint">
+            Leave blank to use <em>output</em> as the prefix.
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <button class="btn" id="splitBtn" disabled>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          Split PDF
+        </button>
+
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-label" id="progressLabel">Processing…</div>
+        </div>
+
+        <div class="log" id="log"></div>
+
+        <div class="downloads" id="downloads"></div>
+
+        <div class="reset-row" id="resetRow" style="display: none">
+          <button class="reset-link" id="resetBtn">↺ Split another file</button>
+        </div>
+      </div>
+
+      <div class="footer">
+        Processed on server using Flask & PyPDF.<br />
+        Built with ❤️
+      </div>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById("fileInput");
+      const dropZone = document.getElementById("dropZone");
+      const fileNameEl = document.getElementById("fileName");
+      const chunkInput = document.getElementById("chunkSize");
+      const decBtn = document.getElementById("decBtn");
+      const incBtn = document.getElementById("incBtn");
+      const prefixInput = document.getElementById("prefixInput");
+      const previewBadge = document.getElementById("previewBadge");
+      const previewBadge2 = document.getElementById("previewBadge2");
+      const previewBadge3 = document.getElementById("previewBadge3");
+      const splitBtn = document.getElementById("splitBtn");
+      const progressWrap = document.getElementById("progressWrap");
+      const progressFill = document.getElementById("progressFill");
+      const progressLabel = document.getElementById("progressLabel");
+      const logEl = document.getElementById("log");
+      const downloads = document.getElementById("downloads");
+      const resetRow = document.getElementById("resetRow");
+      const resetBtn = document.getElementById("resetBtn");
+
+      let selectedFile = null;
+
+      function sanitizePrefix(raw) {
+        return (
+          raw
+            .trim()
+            .replace(/[\/\\:*?"<>|]/g, "-")
+            .replace(/\s+/g, "_") || "output"
+        );
+      }
+
+      function updatePreview() {
+        const p = sanitizePrefix(prefixInput.value);
+        previewBadge.textContent = `${p}_001.pdf`;
+        previewBadge2.textContent = `${p}_002.pdf`;
+        previewBadge3.textContent = `${p}_003.pdf …`;
+      }
+
+      function logMsg(msg, type = "") {
+        logEl.classList.add("visible");
+        const el = document.createElement("div");
+        el.className = "log-entry " + type;
+        el.textContent = msg;
+        logEl.appendChild(el);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function setProgress(pct, label) {
+        progressFill.style.width = pct + "%";
+        progressLabel.textContent = label;
+      }
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+      dropZone.addEventListener("dragleave", () =>
+        dropZone.classList.remove("dragover"),
+      );
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        const f = e.dataTransfer.files[0];
+        if (f && f.type === "application/pdf") setFile(f);
+      });
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files[0]) setFile(fileInput.files[0]);
+      });
+
+      function setFile(f) {
+        selectedFile = f;
+        fileNameEl.textContent = "✓ " + f.name;
+        fileNameEl.classList.add("visible");
+        splitBtn.disabled = false;
+      }
+
+      decBtn.addEventListener("click", () => {
+        const v = parseInt(chunkInput.value) || 1;
+        if (v > 1) chunkInput.value = v - 1;
+      });
+      incBtn.addEventListener("click", () => {
+        chunkInput.value = (parseInt(chunkInput.value) || 1) + 1;
+      });
+
+      prefixInput.addEventListener("input", updatePreview);
+
+      splitBtn.addEventListener("click", async () => {
+        if (!selectedFile) return;
+
+        const chunkSize = Math.max(1, parseInt(chunkInput.value) || 1);
+        const prefix = sanitizePrefix(prefixInput.value);
+
+        logEl.innerHTML = "";
+        logEl.classList.remove("visible");
+        downloads.innerHTML = "";
+        downloads.classList.remove("visible");
+        resetRow.style.display = "none";
+        progressWrap.classList.add("visible");
+        setProgress(0, "Uploading…");
+        splitBtn.disabled = true;
+
+        try {
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+          formData.append("chunk_size", chunkSize);
+          formData.append("prefix", prefix);
+
+          const response = await fetch("/api/split", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Unknown error occurred");
+          }
+
+          logMsg(`📄 Loaded: ${selectedFile.name}`, "info");
+          logMsg(`   Total pages : ${data.total_pages}`, "");
+          logMsg(`   Chunk size  : ${chunkSize} page(s)`, "");
+          logMsg(`   Output files: ${data.num_chunks}`, "");
+          logMsg(`   Prefix      : ${data.prefix}`, "");
+
+          data.files.forEach((file, idx) => {
+            logMsg(`✓ ${file.name}  (pages ${file.pages})`, "ok");
+          });
+
+          setProgress(100, `Done! ${data.num_chunks} file(s) created.`);
+          logMsg(`✅ Split complete — ${data.num_chunks} file(s) ready.`, "ok");
+
+          downloads.classList.add("visible");
+          data.files.forEach((file) => {
+            const a = document.createElement("a");
+            a.className = "dl-btn";
+            a.href = `/api/download/${encodeURIComponent(file.name)}`;
+            a.download = file.name;
+            a.innerHTML = `<span>⬇</span> ${file.name}`;
+            downloads.appendChild(a);
+          });
+
+          resetRow.style.display = "block";
+        } catch (err) {
+          logMsg(`❌ Error: ${err.message}`, "err");
+          setProgress(0, "Failed.");
+          splitBtn.disabled = false;
+        }
+      });
+
+      resetBtn.addEventListener("click", () => {
+        selectedFile = null;
+        fileInput.value = "";
+        fileNameEl.textContent = "";
+        fileNameEl.classList.remove("visible");
+        chunkInput.value = 1;
+        prefixInput.value = "";
+        updatePreview();
+        splitBtn.disabled = true;
+        progressWrap.classList.remove("visible");
+        setProgress(0, "");
+        logEl.innerHTML = "";
+        logEl.classList.remove("visible");
+        downloads.innerHTML = "";
+        downloads.classList.remove("visible");
+        resetRow.style.display = "none";
+      });
+    </script>
+  </body>
+</html>
